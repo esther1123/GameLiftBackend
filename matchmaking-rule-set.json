@@ -1,0 +1,43 @@
+{
+    "name": "dog_vs_cat",
+    "ruleLanguageVersion": "1.0",
+    "playerAttributes": [{
+        "name": "skill",
+        "type": "number",
+        "default": 10
+    }],
+    "teams": [{
+        "name": "cat",
+        "maxPlayers": 2,
+        "minPlayers": 1
+    }, {
+        "name": "dog",
+        "maxPlayers": 2,
+        "minPlayers": 1
+    }],
+    "rules": [{
+        "name": "FairTeamSkill",
+        "description": "The average skill of players in each team is within 10 points from the average skill of all players in the match",
+        "type": "distance",
+        "measurements": [ "avg(teams[*].players.attributes[skill])" ],
+        "referenceValue": "avg(flatten(teams[*].players.attributes[skill]))",
+        "maxDistance": 10
+    }, {
+        "name": "EqualTeamSizes",
+        "description": "Only launch a game when the number of players in each team matches, e.g. 1v1, 2v2",
+        "type": "comparison",
+        "measurements": [ "count(teams[cat].players)" ],
+        "referenceValue": "count(teams[dog].players)",
+        "operation": "="
+    }],
+    "expansions": [{
+        "target": "rules[FairTeamSkill].maxDistance",
+        "steps": [{
+            "waitTimeSeconds": 5,
+            "value": 50
+        }, {
+            "waitTimeSeconds": 15,
+            "value": 100
+        }]
+    }]
+}

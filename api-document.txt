@@ -1,0 +1,291 @@
+GameLift backend - HTTPS RESTful API, Version 1
+-------------------------------------------------------------------------------------------------------
+
+概述：
+
+GameLift backend采用AWS Serverless技术作为后端服务支撑，所有API均为HTTPS URL，并完全遵循RESTful API设计规范。
+
+为了防止非游戏客户端调用API(被攻击)造成服务端资源浪费，API Gateway为API分配了Api Key。
+所有API调用都需要添加 "x-api-key" 头，填写的头内容请向API提供者索取。
+
+除 "ExchangeCodeToTokens" API外，其他所有API在请求时均需要通过Cognito认证，即在请求URL时需带有 "Authorization" 头。
+"Authorization" 的值应为 "ExchangeCodeToTokens" API成功返回结果中的 “accessToken” 字段内容。
+
+返回失败的错误说明：
+Status Code: 400 Bad Request               (提交的Body格式不正确或其他因客户端调用API不当引起的错误)
+Status Code: 401 Unauthorized              (没有Authorization/x-api-key头，或头内容不正确)
+Status Cose: 403 Forbidden                 (认证失败、请求时指定了错误的HTTP Method或Resource)
+Status Code: 404 Not Found                 (访问的数据不存在)
+Status Code: 429 Too Many Requests         (当前请求频率/次数过多，触发了API Gateway的throttle设置，应稍后再试)
+Status Code: 500/502 Internal Server Error (服务器处理消息时遇到未知错误，大概率为服务端BUG)
+
+-------------------------------------------------------------------------------------------------------
+
+API：
+
+1. ExchangeCodeToTokens
+POST https://gl-workshop.sujie.awserverless.com/dev/tokens/exchange
+Content-Type: application/json
+Body:
+{
+  "authzCode" : string,  // Cognito登入成功后Callback URL中code参数的值
+}
+
+说明：调用该API之前应该先通过Cognito的Hosted Web UI进行登入，获取authorization code值。
+
+返回成功：
+Status Code: 200 OK
+Content-Type: application/json
+Body:
+{
+  "accessToken"   : string,  // 利用Cognito的ResourceServer进行认证
+  "refreshToken"  : string,  // 用于token超时前获取新的accessToken
+  "expiresIn"     : integer,  // accessToken超时时间，单位：秒
+}
+
+返回失败：
+Status Cose: 403 Forbidden
+Status Code: 429 Too Many Requests
+Status Code: 500/502 Internal Server Error
+
+示例：
+POST https://gl-workshop.sujie.awserverless.com/dev/tokens/exchange
+x-api-key: "CM0c3Wpdv68hpSkLZ9GNfbmnGho6vEt24yzq5Jkj"
+Body:
+{
+  "authzCode" : "2a47ea9b-18e9-4ec5-a49e-fab8346b7e3b"
+}
+200 OK
+Content-Type: application/json
+{
+    "accessToken": "eyJraWQiOiI3TlZqK3ZVdFo5clhGc1V3R29UMVpiS2d2ZFZmVTNxUkd4QStYZ...",
+    "refreshToken": "eyJjdHkiOiJKV1QiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiUlNBLU9BRVAi...",
+    "expiresIn": 3600
+}
+
+================================================================================
+
+2. RefreshTokens
+POST https://gl-workshop.sujie.awserverless.com/dev/tokens/refresh
+Content-Type: application/json
+Authorization: ${accessToken}
+Body:
+{
+  "refreshToken" : string,  // ExchangeCodeToTokens API成功返回的refreshToken
+}
+
+说明：ExchangeCodeToTokens API返回的refreshToken具有超时时间，需要在expiresIn时间内调用该API获取新的tokens。
+
+返回成功：
+Status Code: 200 OK
+Content-Type: application/json
+Body:
+{
+  "accessToken"   : string,  // 利用Cognito的ResourceServer进行认证
+}
+
+返回失败：
+Status Cose: 403 Forbidden
+Status Code: 429 Too Many Requests
+Status Code: 500/502 Internal Server Error
+
+示例：
+POST https://gl-workshop.sujie.awserverless.com/dev/tokens/refresh
+x-api-key: "CM0c3Wpdv68hpSkLZ9GNfbmnGho6vEt24yzq5Jkj"
+Authorization: "eyJraWQiOiI3TlZqK3ZVdFo5clhGc1V3R29UMVpiS2d2ZFZmVTNxUk..."
+Body:
+{
+    "refreshToken": "eyJjdHkiOiJKV1QiLCJlbmMiOiJBMjU2R0NNIiwiYWxn..."
+}
+200 OK
+Content-Type: application/json
+{
+    "accessToken": "eyJraWQiOiI3TlZqK3ZVdFo5clhGc1V3R29UMVpiS2d2ZFZmVTNxUkd4QStYZ"
+}
+
+================================================================================
+
+3. RevokeTokens
+POST https://gl-workshop.sujie.awserverless.com/dev/tokens/revoke
+Authorization: ${accessToken}
+
+说明：玩家退出游戏前调用，使所有tokens失效。
+
+返回成功：
+Status Code: 200 OK
+
+返回失败：
+Status Cose: 403 Forbidden
+Status Code: 429 Too Many Requests
+Status Code: 500/502 Internal Server Error
+
+示例：
+POST https://gl-workshop.sujie.awserverless.com/dev/tokens/revoke
+x-api-key: "CM0c3Wpdv68hpSkLZ9GNfbmnGho6vEt24yzq5Jkj"
+Authorization: "eyJraWQiOiI3TlZqK3ZVdFo5clhGc1V3R29UMVpiS2d2ZFZmVTNxUk..."
+200 OK
+
+================================================================================
+
+4. GetPlayerData
+GET https://gl-workshop.sujie.awserverless.com/dev/players/self
+Authorization: ${accessToken}
+
+说明：获取玩家数据
+
+返回成功：
+Status Code: 200 OK
+Content-Type: application/json
+Body:
+{
+  "playerId":  string, // 玩家ID
+  "wins"    :  int,    // 玩家获胜次数
+  "losses"  :  int,    // 玩家失败次数
+}
+
+返回失败：
+Status Code: 400 Bad Request
+Status Code: 401 Unauthorized
+Status Cose: 403 Forbidden
+Status Code: 404 NotFound
+Status Code: 429 Too Many Requests
+Status Code: 500 Internal Server Error
+
+示例：
+GET https://gl-workshop.sujie.awserverless.com/dev/players/self
+x-api-key: "CM0c3Wpdv68hpSkLZ9GNfbmnGho6vEt24yzq5Jkj"
+Authorization: "eyJraWQiOiI3TlZqK3ZVdFo5clhGc1V3R29UMVpiS2d2ZFZmVTNxUk..."
+200 OK
+Content-Type: application/json
+{
+    "playerId": "c55e9fe9-f154-4b12-b68a-95b60804f09b",
+    "wins": 0,
+    "losses": 0
+}
+
+================================================================================
+
+5. StartMatchmaking
+POST https://gl-workshop.sujie.awserverless.com/dev/matchmaking
+Content-Type: application/json
+Authorization: ${accessToken}
+Body:
+{
+  "${aws-region-code}": integer,  // 客户端与指定AWS Region之间的延迟。单位：毫秒
+  ...
+}
+
+说明：向GameLift FlexMatch发起匹配请求。
+
+返回成功：
+Status Code: 200 OK
+Content-Type: application/json
+Body:
+{
+  "ticketId"       : string,  // FlexMatch分配的ticketId
+}
+
+返回失败：
+Status Code: 400 Bad Request   // Body中有"${aws-region-code}"的值 < 1 时
+Status Cose: 403 Forbidden
+Status Code: 429 Too Many Requests
+Status Code: 500/502 Internal Server Error
+
+示例：
+POST https://gl-workshop.sujie.awserverless.com/dev/matchmaking
+x-api-key: "CM0c3Wpdv68hpSkLZ9GNfbmnGho6vEt24yzq5Jkj"
+Authorization: "eyJraWQiOiI3TlZqK3ZVdFo5clhGc1V3R29UMVpiS2d2ZFZmVTNxUk..."
+Body:
+{
+    "ap-northeast-1": 60,
+    "us-east-1": 210
+}
+200 OK
+Content-Type: application/json
+{
+    "ticketId": "495c8a8b-e154-4422-bf8e-7f8cead32d02"
+}
+
+================================================================================
+
+6. PollMatchmaking
+GET https://gl-workshop.sujie.awserverless.com/dev/matchmaking/{tid}
+Authorization: ${accessToken}
+
+说明：获取匹配结果信息
+
+返回成功：
+Status Code: 200 OK
+Content-Type: application/json
+Body:
+{
+  "ticketId"            :  string,         // FlexMatch分配的ticketId
+  "ticketType"          :  string,         // ticket类型：[MatchmakingSucceeded, MatchmakingTimedOut, MatchmakingCancelled, MatchmakingFailed]
+  "players":[              object array,   // 参与匹配的玩家信息。仅当 ticketType == MatchmakingSucceeded 时存在
+    {
+      "playerId"        :  string,         // 玩家ID
+      "playerSessionId" :  string,         // GameLift为玩家分配的会话ID，用于加入游戏时被GameServer用来向GameLift Service确认玩家资格
+    },
+    ...
+  ]
+  "gameSessionInfo":{      object,         // 游戏会话(房间)信息。仅当 ticketType == MatchmakingSucceeded 时存在
+    "ipAddress"         :  string,         // 可进行游戏的GameServer地址
+    "port"              :  integer,        // 可进行游戏的GameServer端口
+  }
+}
+
+返回失败：
+Status Cose: 403 Forbidden
+Status Code: 404 NotFound
+Status Code: 429 Too Many Requests
+Status Code: 500/502 Internal Server Error
+
+示例：
+GET https://gl-workshop.sujie.awserverless.com/dev/matchmaking/82118a13-c807-4f3d-853e-1c80b9100d66
+x-api-key: "CM0c3Wpdv68hpSkLZ9GNfbmnGho6vEt24yzq5Jkj"
+Authorization: "eyJraWQiOiI3TlZqK3ZVdFo5clhGc1V3R29UMVpiS2d2ZFZmVTNxUk..."
+200 OK
+Content-Type: application/json
+{
+    "gameSessionInfo": {
+        "ipAddress": "3.112.171.121",
+        "port": 7777
+    },
+    "ticketId": "82118a13-c807-4f3d-853e-1c80b9100d66",
+    "players": [
+        {
+            "playerId": "ab47e09a-d172-432c-bffa-9abdc5fbd659",
+            "playerSessionId": "psess-ae82a31c-e786-d2c4-417a-b41eabff7595"
+        },
+        {
+            "playerId": "3c4bd3a9-5636-47f1-b6d8-6715134eef00",
+            "playerSessionId": "psess-ae82a31c-e786-d2c4-a754-8cc256724f68"
+        }
+    ],
+    "ticketType": "MatchmakingSucceeded"
+}
+
+================================================================================
+
+7. StopMatchmaking
+DELETE https://gl-workshop.sujie.awserverless.com/dev/matchmaking/{tid}
+Authorization: ${accessToken}
+
+说明：向GameLift FlexMatch发起取消匹配请求。
+
+返回成功：
+Status Code: 200 OK
+
+返回失败：
+Status Cose: 403 Forbidden
+Status Code: 429 Too Many Requests
+Status Code: 500/502 Internal Server Error
+
+示例：
+DELETE https://gl-workshop.sujie.awserverless.com/dev/matchmaking/c968d76f-68c7-4458-b867-0599fe824d15
+x-api-key: "CM0c3Wpdv68hpSkLZ9GNfbmnGho6vEt24yzq5Jkj"
+Authorization: "eyJraWQiOiI3TlZqK3ZVdFo5clhGc1V3R29UMVpiS2d2ZFZmVTNxUk..."
+200 OK
+
+================================================================================
+
