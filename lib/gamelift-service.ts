@@ -87,14 +87,14 @@ export class GameLiftService extends Construct {
                     destinationArn: `arn:aws:gamelift:${cdk.Stack.of(this).region}::alias/${fleetAlias.attrAliasId}`
                 }
             ],
-            filterConfiguration: {
-                allowedLocations: [
-                    cdk.Stack.of(this).region
-                ]
-            },
+            // filterConfiguration: {
+            //    allowedLocations: [
+            //        cdk.Stack.of(this).region
+            //    ]
+            // },
             // playerLatencyPolicies: 
             // priorityConfiguration:
-            timeoutInSeconds: 600
+            timeoutInSeconds: 30
         });
         gameSessionQueue.node.addDependency(fleetAlias);
 
@@ -108,7 +108,7 @@ export class GameLiftService extends Construct {
             name: 'SuJie-GLWorkshop-DefaultConfig',
             description: 'Default matchmaking config for 1v1 and 2v2 match',
             acceptanceRequired: false,
-            requestTimeoutSeconds: 60,
+            requestTimeoutSeconds: 30,
             ruleSetName: ruleSet.attrName,
             additionalPlayerCount: 0,
             backfillMode: 'MANUAL',

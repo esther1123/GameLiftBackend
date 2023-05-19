@@ -16,6 +16,14 @@ export class AccountService extends Construct {
     public readonly cognitoClientId: string;
     public readonly cognitoScope: string;
 
+    private getRandomInt(max: number): number {
+        return Math.floor(Math.random() * max);
+    }
+
+    private getFibonacciNumber(n: number): number {
+        return Math.round((Math.pow((1 + Math.sqrt(5)) / 2, n) - Math.pow((1 - Math.sqrt(5)) / 2, n)) / Math.sqrt(5));
+    }
+
     constructor(scope: Construct, id: string) {
         super(scope, id);
 
@@ -106,9 +114,14 @@ export class AccountService extends Construct {
         });
         new cdk.CfnOutput(scope, 'PoolId', { value: this.playerPool.userPoolId });
 
+        const fiboIndex1 = this.getRandomInt(11);
+        const fiboIndex2 = this.getRandomInt(23);
+        const fiboNumber1 = this.getFibonacciNumber(fiboIndex1);
+        const fiboNumber2 = this.getFibonacciNumber(fiboIndex2);
+        const domainPrefix = `sujie-gl-workshop-${fiboNumber1}${fiboNumber2}`;
         const poolDomain = this.playerPool.addDomain('PlayerPoolDomain', {
             cognitoDomain: {
-                domainPrefix: 'sujie-gl-workshop'
+                domainPrefix: domainPrefix
             }
         });
         this.cognitoDomain = poolDomain.baseUrl().replace('https://', '');
