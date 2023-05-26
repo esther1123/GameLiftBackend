@@ -27,8 +27,10 @@ export class AccountService extends Construct {
     constructor(scope: Construct, id: string) {
         super(scope, id);
 
+        const stackSuffix = this.node.tryGetContext("stackSuffix");
+
         this.playerTable = new dynamodb.Table(this, 'PlayerTable', {
-            tableName: 'SuJie-GLWorkshop-Player',
+            tableName: `SuJie-GLWorkshop-Player-${stackSuffix}`,
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST, 
             removalPolicy: cdk.RemovalPolicy.DESTROY,
             partitionKey: {
@@ -40,7 +42,7 @@ export class AccountService extends Construct {
         new cdk.CfnOutput(scope, 'PlayerTable', {  value: this.playerTable.tableName });
 
         const cognitoTriggerRole = new iam.Role(this, 'CognitoEventRole', {
-            roleName: `SuJie-GLWorkshop-CognitoEventRole-${cdk.Stack.of(this).region}`,
+            roleName: `SuJie-GLWorkshop-CognitoEventRole-${cdk.Stack.of(this).region}-${stackSuffix}`,
             assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
             managedPolicies: [
                 iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'),
@@ -59,13 +61,13 @@ export class AccountService extends Construct {
         }
 
         const signUpCheckFunction = new lambdanodejs.NodejsFunction(this, 'HandlePreSignUpEvent', {
-            functionName: 'SuJie-GLWorkshop-HandlePreSignUpEvent',
+            functionName: `SuJie-GLWorkshop-HandlePreSignUpEvent-${stackSuffix}`,
             entry: './resources/account-service/handle-pre-signup-event.ts',
             ...functionSettings
         });
 
         const signUpConfirmFunction = new lambdanodejs.NodejsFunction(this, 'HandlePostConfirmEvent', {
-            functionName: 'SuJie-GLWorkshop-HandlePostConfirmEvent',
+            functionName: `SuJie-GLWorkshop-HandlePostConfirmEvent-${stackSuffix}`,
             entry: './resources/account-service/handle-post-confirm-event.ts',
             environment: {
                 'DDB_PLAYER_TABLE': this.playerTable.tableName
@@ -76,7 +78,7 @@ export class AccountService extends Construct {
         this.playerTable.grantReadData(signUpConfirmFunction);
 
         this.playerPool = new cognito.UserPool(this, 'PlayerPool', {
-            userPoolName: 'SuJie-GLWorkshop-PlayerPool',
+            userPoolName: `SuJie-GLWorkshop-PlayerPool-${stackSuffix}`,
             accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
             autoVerify: {
                 email: true,

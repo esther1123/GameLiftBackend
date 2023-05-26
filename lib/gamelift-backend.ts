@@ -25,6 +25,8 @@ export class GameLiftBackend extends Construct {
     constructor(scope: Construct, id: string, props: GameLiftBackendProps) {
         super(scope, id);
 
+        const stackSuffix = this.node.tryGetContext("stackSuffix");
+
         const cognitoAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(scope, 'CognitoAuthorizer', {
             authorizerName: 'PlayerPoolAuthorizer',
             cognitoUserPools: [
@@ -35,7 +37,7 @@ export class GameLiftBackend extends Construct {
         });
 
         const apigLambdaRole = new iam.Role(this, 'ApigLambdaRole', {
-            roleName: `SuJie-GLWorkshop-ApigLambdaRole-${cdk.Stack.of(this).region}`,
+            roleName: `SuJie-GLWorkshop-ApigLambdaRole-${cdk.Stack.of(this).region}-${stackSuffix}`,
             assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
             managedPolicies: [
                 iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'),
@@ -71,7 +73,7 @@ export class GameLiftBackend extends Construct {
         }
 
         const codeToTokensFunction = new lambdanodejs.NodejsFunction(this, 'ExchangeCodeToTokens', {
-            functionName: 'SuJie-GLWorkshop-ExchangeCodeToTokens',
+            functionName: `SuJie-GLWorkshop-ExchangeCodeToTokens-${stackSuffix}`,
             entry: './resources/gamelift-backend/exchange-code-to-tokens.ts',
             environment: {
                 'COGNITO_DOMAIN': props.cognitoDomain,
@@ -82,7 +84,7 @@ export class GameLiftBackend extends Construct {
         });
 
         const refreshTokensFunction = new lambdanodejs.NodejsFunction(this, 'RefreshTokens', {
-            functionName: 'SuJie-GLWorkshop-RefreshTokens',
+            functionName: `SuJie-GLWorkshop-RefreshTokens-${stackSuffix}`,
             entry: './resources/gamelift-backend/refresh-tokens.ts',
             environment: {
                 'COGNITO_CLIENT_ID': props.cognitoClientId
@@ -91,13 +93,13 @@ export class GameLiftBackend extends Construct {
         });
 
         const revokeTokensFunction = new lambdanodejs.NodejsFunction(this, 'RevokeTokens', {
-            functionName: 'SuJie-GLWorkshop-RevokeTokens',
+            functionName: `SuJie-GLWorkshop-RevokeTokens-${stackSuffix}`,
             entry: './resources/gamelift-backend/revoke-tokens.ts',
             ...functionSettings
         });
 
         const getPlayerDataFunction = new lambdanodejs.NodejsFunction(this, 'GetPlayerData', {
-            functionName: 'SuJie-GLWorkshop-GetPlayerData',
+            functionName: `SuJie-GLWorkshop-GetPlayerData-${stackSuffix}`,
             entry: './resources/gamelift-backend/get-player-data.ts',
             environment: {
                 'DDB_PLAYER_TABLE': props.playerTable.tableName,
@@ -106,7 +108,7 @@ export class GameLiftBackend extends Construct {
         });
 
         const startMatchmakingFunction = new lambdanodejs.NodejsFunction(this, 'StartMatchmaking', {
-            functionName: 'SuJie-GLWorkshop-StartMatchmaking',
+            functionName: `SuJie-GLWorkshop-StartMatchmaking-${stackSuffix}`,
             entry: './resources/gamelift-backend/start-matchmaking.ts',
             environment: {
                 'DDB_PLAYER_TABLE': props.playerTable.tableName,
@@ -116,13 +118,13 @@ export class GameLiftBackend extends Construct {
         });
 
         const stopMatchmakingFunction = new lambdanodejs.NodejsFunction(this, 'StopMatchmaking', {
-            functionName: 'SuJie-GLWorkshop-StopMatchmaking',
+            functionName: `SuJie-GLWorkshop-StopMatchmaking-${stackSuffix}`,
             entry: './resources/gamelift-backend/stop-matchmaking.ts',
             ...functionSettings
         });
 
         const pollMatchmakingFunction = new lambdanodejs.NodejsFunction(this, 'PollMatchmaking', {
-            functionName: 'SuJie-GLWorkshop-PollMatchmaking',
+            functionName: `SuJie-GLWorkshop-PollMatchmaking-${stackSuffix}`,
             entry: './resources/gamelift-backend/poll-matchmaking.ts',
             environment: {
                 'DDB_TICKET_TABLE': props.ticketTable.tableName
@@ -131,7 +133,7 @@ export class GameLiftBackend extends Construct {
         });
 
         const gameResultFunction = new lambdanodejs.NodejsFunction(this, 'ProcessGameSessionResult', {
-            functionName: 'SuJie-GLWorkshop-ProcessGameSessionResult',
+            functionName: `SuJie-GLWorkshop-ProcessGameSessionResult-${stackSuffix}`,
             entry: './resources/gamelift-backend/process-game-session-result.ts',
             environment: {
             },
@@ -162,7 +164,7 @@ export class GameLiftBackend extends Construct {
         }
 
         const gameliftApi = new apigateway.RestApi(this, 'GameLiftAPI', {
-            restApiName: 'SuJie-GLWorkshop-GameLiftAPI',
+            restApiName: `SuJie-GLWorkshop-GameLiftAPI-${stackSuffix}`,
             domainName: domainNameOptions, 
             retainDeployments: false,
             // endpointExportName: 'GameLiftBackendEndpoint',
@@ -259,7 +261,7 @@ export class GameLiftBackend extends Construct {
         gameSessionIdPath.addMethod('POST', new apigateway.LambdaIntegration(gameResultFunction));
 
         const usagePlane = gameliftApi.addUsagePlan('UsagePlan', {
-            name: 'SuJie-GLWorkshop-UsagePlan',
+            name: `SuJie-GLWorkshop-UsagePlan-${stackSuffix}`,
             throttle: {
                 burstLimit: 10,
                 rateLimit: 100
@@ -287,7 +289,7 @@ export class GameLiftBackend extends Construct {
         });
 
         const apiKey = gameliftApi.addApiKey('ApiKey', {
-            apiKeyName: 'SuJie-GLWorkshop-Key'
+            apiKeyName: `SuJie-GLWorkshop-Key-${stackSuffix}`
         });
         usagePlane.addApiKey(apiKey);
         new cdk.CfnOutput(scope, 'ApiKey', { 

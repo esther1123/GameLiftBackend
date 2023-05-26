@@ -17,8 +17,10 @@ export class GameLiftService extends Construct {
     constructor(scope: Construct, id: string) {
         super(scope, id);
 
+        const stackSuffix = this.node.tryGetContext("stackSuffix");
+
         this.ticketTable = new dynamodb.Table(this, 'MatchmakingTicket', {
-            tableName: 'SuJie-GLWorkshop-MatchmakingTicket',
+            tableName: `SuJie-GLWorkshop-MatchmakingTicket-${stackSuffix}`,
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST, 
             removalPolicy: cdk.RemovalPolicy.DESTROY,
             partitionKey: {
@@ -31,7 +33,7 @@ export class GameLiftService extends Construct {
         new cdk.CfnOutput(scope, 'TicketTable', { value: this.ticketTable.tableName });
   
         const mmEventRole = new iam.Role(this, 'MatchmakingEventRole', {
-            roleName: `SuJie-GLWorkshop-MatchmakingEventRole-${cdk.Stack.of(this).region}`,
+            roleName: `SuJie-GLWorkshop-MatchmakingEventRole-${cdk.Stack.of(this).region}-${stackSuffix}`,
             assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
             managedPolicies: [
                 iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'),
@@ -39,7 +41,7 @@ export class GameLiftService extends Construct {
         });
 
         const mmEventFunction = new lambdanodejs.NodejsFunction(this, 'HandleMatchmakingEvent', {
-            functionName: 'SuJie-GLWorkshop-HandleMatchmakingEvent',
+            functionName: `SuJie-GLWorkshop-HandleMatchmakingEvent-${stackSuffix}`,
             entry: './resources/gamelift-service/handle-matchmaking-event.ts',
             handler: 'handler',
             runtime: lambda.Runtime.NODEJS_16_X,
@@ -56,8 +58,8 @@ export class GameLiftService extends Construct {
 	    this.ticketTable.grantReadData(mmEventFunction);
 
         const snsMatchmakingTopic = new sns.Topic(this, 'MatchmakingTopic', {
-            topicName: 'SuJie-GLWorkshop-MatchmakingTopic',
-            displayName: 'SuJie-GLWorkshop-MatchmakingTopic',
+            topicName: `SuJie-GLWorkshop-MatchmakingTopic-${stackSuffix}`,
+            displayName: `SuJie-GLWorkshop-MatchmakingTopic-${stackSuffix}`,
         });
         snsMatchmakingTopic.addSubscription(new snssubs.LambdaSubscription(mmEventFunction));
 
@@ -75,13 +77,13 @@ export class GameLiftService extends Construct {
             };
         }
         const fleetAlias = new gamelift.CfnAlias(scope, 'DefaultFleetAlias', {
-            name: 'SuJie-GLWorkshop-DefaultAlias',
+            name: `SuJie-GLWorkshop-DefaultAlias-${stackSuffix}`,
             routingStrategy: routingStrategy,
             description: 'Update this alias to point to a real Fleet'
         });
 
         const gameSessionQueue = new gamelift.CfnGameSessionQueue(scope, 'GameSessionQueue', {
-            name: 'SuJie-GLWorkshop-DefaultQueue',
+            name: `SuJie-GLWorkshop-DefaultQueue-${stackSuffix}`,
             destinations: [
                 {
                     destinationArn: `arn:aws:gamelift:${cdk.Stack.of(this).region}::alias/${fleetAlias.attrAliasId}`
@@ -100,12 +102,12 @@ export class GameLiftService extends Construct {
 
         const ruleSetBody = fs.readFileSync('./matchmaking-rule-set.json', 'utf-8');
         const ruleSet = new gamelift.CfnMatchmakingRuleSet(scope, 'MatchmakingRuleSet', {
-            name: 'SuJie-GLWorkshop-DefaultRuleSet',
+            name: `SuJie-GLWorkshop-DefaultRuleSet-${stackSuffix}`,
             ruleSetBody: ruleSetBody
         });
 
         const flexMatchConfig = new gamelift.CfnMatchmakingConfiguration(scope, 'MatchmakingConfig', {
-            name: 'SuJie-GLWorkshop-DefaultConfig',
+            name: `SuJie-GLWorkshop-DefaultConfig-${stackSuffix}`,
             description: 'Default matchmaking config for 1v1 and 2v2 match',
             acceptanceRequired: false,
             requestTimeoutSeconds: 30,
