@@ -8,6 +8,9 @@ if [ -z "$DEPLOYMENT_REGION" ]; then
     DEPLOYMENT_REGION="$(aws configure get region)"
 fi
 
+echo "Run bootstrap..."
+npx cdk bootstrap aws://${AWS_ACCOUNT}/${DEPLOYMENT_REGION} -c deploymentStage=DEV --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
+
 CDK_DEPLOYMENT_OUTPUT_FILE="${SHELL_PATH}/cdk.out/deployment-output.json"
 
 export CDK_DEPLOY_ACCOUNT=${AWS_ACCOUNT}

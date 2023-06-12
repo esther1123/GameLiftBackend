@@ -14,6 +14,9 @@ if "%DEPLOYMENT_REGION%"=="" (
         )
 )
 
+echo Run bootstrap...
+call npx cdk bootstrap aws://%AWS_ACCOUNT%/%DEPLOYMENT_REGION% -c deploymentStage=DEV --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess 
+
 SET CDK_DEPLOYMENT_OUTPUT_FILE=%SCRIPT_FULL_PATH%\cdk.out\deployment-output.json
 
 SET CDK_DEPLOY_ACCOUNT=%AWS_ACCOUNT%

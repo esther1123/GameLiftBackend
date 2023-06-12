@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
@@ -116,11 +117,39 @@ export class AccountService extends Construct {
         });
         new cdk.CfnOutput(scope, 'PoolId', { value: this.playerPool.userPoolId });
 
-        const fiboIndex1 = this.getRandomInt(11);
-        const fiboIndex2 = this.getRandomInt(23);
-        const fiboNumber1 = this.getFibonacciNumber(fiboIndex1);
-        const fiboNumber2 = this.getFibonacciNumber(fiboIndex2);
-        const domainPrefix = `sujie-gl-workshop-${fiboNumber1}${fiboNumber2}`;
+        let domainPrefix = 'sujie-gl-workshop';
+        let domainSuffix = '';
+        const domainSuffixFilePath = './cdk.out/cognito-domain-suffix.txt'
+        if (fs.existsSync(domainSuffixFilePath))
+        {
+            domainSuffix = fs.readFileSync(domainSuffixFilePath, 'utf-8');
+            if (domainSuffix.length > 0)
+            {
+                domainPrefix = `${domainPrefix}-${domainSuffix}`
+            }
+            else
+            {
+                const fiboIndex1 = this.getRandomInt(11);
+                const fiboIndex2 = this.getRandomInt(23);
+                const fiboNumber1 = this.getFibonacciNumber(fiboIndex1);
+                const fiboNumber2 = this.getFibonacciNumber(fiboIndex2);
+                domainSuffix = `${fiboNumber1}${fiboNumber2}`;
+                domainPrefix = `${domainPrefix}-${domainSuffix}`;
+                fs.writeFileSync(domainSuffixFilePath, domainSuffix);
+            }
+        }
+        else
+        {
+            const fiboIndex1 = this.getRandomInt(11);
+            const fiboIndex2 = this.getRandomInt(23);
+            const fiboNumber1 = this.getFibonacciNumber(fiboIndex1);
+            const fiboNumber2 = this.getFibonacciNumber(fiboIndex2);
+            domainSuffix = `${fiboNumber1}${fiboNumber2}`;
+            domainPrefix = `${domainPrefix}-${domainSuffix}`;
+            fs.writeFileSync(domainSuffixFilePath, domainSuffix);
+        }
+        console.log('Cognito Domain Prefix = ' + domainPrefix);
+
         const poolDomain = this.playerPool.addDomain('PlayerPoolDomain', {
             cognitoDomain: {
                 domainPrefix: domainPrefix
